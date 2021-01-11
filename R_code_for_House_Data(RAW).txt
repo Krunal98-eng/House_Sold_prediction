@@ -1,0 +1,99 @@
+#CSV File IMport krr rhey hey
+df <- read.csv("C:/Machine learning Skillzcafe/House-Price.csv")
+View(df)
+
+#structure of df
+str(df)
+
+#EDD in R
+summary(df)  #to summaries the df
+
+#(by observing data we have understood that outliers are present in Data to see them we have to 
+# use scatter plot , u can asloe check it with box plot)
+library(ggplot2) 
+
+ggplot(data = df, aes(x= n_hot_rooms)) + geom_histogram()
+ggplot(data = df, aes(x=rainfall)) + geom_histogram()
+
+#to see multiple variable with sold
+pairs(~Sold + n_hot_rooms + rainfall, data= df)
+
+#Plotting Catogrical Variable
+barplot(table(df$airport))
+barplot(table(df$bus_ter))
+
+#from obs of catogoriacal we can conclude that the bus ter have only single variable "YES" which will not affect Model
+# Rainfall and n_hot_rooms are having outliers
+# n_hos_bed is having missing value
+
+#Outlier treatment in R by florring and capping method
+
+#1) n_hot_rooms (having outlier in right_most part)
+
+View(df)
+upper_limit = quantile(df$n_hot_rooms, 0.99)*3
+df$n_hot_rooms[df$n_hot_rooms > upper_limit] <- upper_limit
+summary(df$n_hot_rooms)
+
+#2) Similary dealing with rainfall(Lies in left-most part of hist)
+
+lower_limit = quantile(df$rainfall, 0.01)*0.3
+df$rainfall[df$rainfall < lower_limit] <- lower_limit
+summary(df$rainfall)
+
+#Now Since n_hos_beds is having missing values we have to deal with missing value
+
+mean = mean(df$n_hos_beds, na.rm = TRUE) #na.rm removes null values
+df$n_hos_beds[is.na(df$n_hos_beds)] <- mean
+summary(df$n_hos_beds)
+
+#now since dist1, dist2, dist3, dist4 states the info that how long the distance of emp_hub is presesnt
+# Note-- We can replace it with one variable instead of 4
+# Variable Transformation 
+
+df$avg_dist = (df$dist1 + df$dist2 + df$dist3 + df$dist4)/4 #new column has been added to data frame
+
+df <- df[,-6:-9]
+#since bus_ter doesnt will not effect our model we will del that col. too
+df <- df[, -13]
+
+#dummy variable creation -- We will Create columns and del columns which are conveying us the same info
+#eg- Airport has only two var- YES AND NO single column will give an proper info in term of (int i.e 0,1)
+
+library(dummies)
+df <- dummy.data.frame(df)
+View(df)
+# water body none and airport_No is un-necessary so v can del it
+df <- df[,-14]
+df <- df[, -8]
+View(df)
+
+#Training data on Logistic Rregressor(For Multiple Predictors)
+glm.fit =glm(Sold~ ., data = df , family = binomial) #binomial mns we are using logistic regressor
+summary(glm.fit)  #this result wil show dependency of parameters on our sold variable
+
+#confusion Matrix and predicting Probabilities
+
+glm.probs = predict(glm.fit, type="response")
+
+#now boundary condition is 0.5 so we can create a various class i.e we can create array, which contains p(b)>0.5
+
+glm.pred = rep("NO", 506)
+glm.pred[glm.probs > 0.5] = "YES"
+
+#creating confusion matrix
+table(glm.pred, df$Sold)
+#Noting down the Values according to table i.e TRUE-POSITIVE and TRUE-NEGATIVE
+
+#Linear Discriminant Analysis
+
+library("MASS")
+
+lda.fit = lda(Sold~., data = df)
+lda.fit  #Noting Prior probablities
+
+lda.pred = predict(lda.fit, data = df)
+lda.pred$posterior   #it will give p(b) of sold and unsold of each obs.
+
+lda.class = lda.pred$class  #default condtn 0.5
+table(lda.class, df$Sold)
